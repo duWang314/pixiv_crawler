@@ -2,9 +2,14 @@ import sys
 import time
 import requests
 from pathlib import Path
+from datetime import datetime
 
 from img_to_pdf import merge_images_to_pdf
 
+
+def print_current_time():
+    now = datetime.now()
+    print(now.strftime("%m-%d %H:%M:%S"), end=" ")
 
 def batch_download(base_url):
     # 判断用户传的 url 是否自带格式
@@ -41,17 +46,21 @@ def batch_download(base_url):
 
     page = 0
     print()
+    print_current_time()
     print(f"[开始任务] 目标作品 ID: {artwork_id}")
 
     folder_path = Path(artwork_id)
 
     try:
         folder_path.mkdir(exist_ok=True)
+        print_current_time()
         print(f"[准备阶段] 文件夹 '{folder_path}' 创建成功（或已存在）")
     except PermissionError:
+        print_current_time()
         print("[准备失败] 权限不足，无法创建文件夹")
         sys.exit(1)
     except OSError as e:
+        print_current_time()
         print(f"[准备失败] 创建文件夹时出错: {e}")
         sys.exit(1)
     
@@ -61,32 +70,41 @@ def batch_download(base_url):
             try:
                 png_status = requests.get(f"{base_url}_p{page}.png", headers=headers, timeout=20).status_code
                 if png_status == 200:
+                    print_current_time()
                     print("[准备阶段] 已确认图片格式为 png, 等待 5 秒后任务正式开始...")
                     img_format = "png"
                     time.sleep(5)
                     break
                 elif png_status == 404:
+                    print_current_time()
                     print("[准备阶段] 已确认图片格式不是 png, 等待 5 秒后尝试 jpg...")
                     time.sleep(5)
                     jpg_status = requests.get(f"{base_url}_p{page}.jpg", headers=headers, timeout=20).status_code
                     if jpg_status == 200:
+                        print_current_time()
                         print("[准备阶段] 已确认图片格式为 jpg, 等待 5 秒后任务正式开始...")
                         img_format = "jpg"
                         time.sleep(5)
                         break
                     else:
+                        print_current_time()
                         print("[准备失败] 未发现可以爬取的图片格式")
                         sys.exit(1)
                 else:
+                    print_current_time()
                     print(f"[请求异常] 服务器返回了未预期的状态码: {png_status}")
+                    print_current_time()
                     print("[提示] 请检查是否由于请求过快导致 IP 被暂时封禁。")
                     sys.exit(1)
             except requests.RequestException as e:
+                print_current_time()
                 print(f"[网络错误] 第 {attempt} 次尝试, 请求发生异常中断: {e}")
                 if attempt == max_retries:
+                    print_current_time()
                     print("[网络错误] 已到达最大尝试次数, 程序退出")
                     sys.exit(1)
     else:
+        print_current_time()
         print(f"[准备阶段] 链接已提供图片格式为 {img_format}")
 
     while True:
@@ -95,7 +113,9 @@ def batch_download(base_url):
         filename = f"{artwork_id}_p{page}.{img_format}"
 
         print()
+        print_current_time()
         print(f"[当前进度] 正在尝试下载页码: p{page}")
+        print_current_time()
         print(f"[请求地址] {target_url}")
 
         for attempt in range(1, max_retries + 1):
@@ -107,12 +127,14 @@ def batch_download(base_url):
                 if response.status_code == 200:
                     with open(f"./{artwork_id}/{filename}", "wb") as f:
                         f.write(response.content)
+                    print_current_time()
                     print(f"[下载成功] 图片已成功保存为: {filename}")
 
                     # 准备请求下一页
                     page += 1
 
                     # 3. 遵守规范，每次成功爬取后等待 10 秒
+                    print_current_time()
                     print("[安全冷却] 为防止触发风控，等待 10 秒后继续...")
                     time.sleep(10)
                     break
@@ -120,24 +142,31 @@ def batch_download(base_url):
                 # 4. 如果返回 404，说明已经到了最后一页，优雅退出
                 elif response.status_code == 404:
                     print()
+                    print_current_time()
                     print("[任务结束] 收到 404 错误。判定该漫画已下载完毕。")
+                    print_current_time()
                     print(f"[统计结果] 共计成功下载 {page} 张图片。")
                     print()
 
                     # 合并 pdf
+                    print_current_time()
                     print("[收尾工作] 合并图片为 pdf ", end="")
                     merge_images_to_pdf(artwork_id, f"{artwork_id}.pdf", img_format, page)
                     sys.exit(0)
 
                 # 5. 处理其他非 200/404 的异常状态码（如 403 封禁、502 报错等）
                 else:
+                    print_current_time()
                     print(f"[请求异常] 服务器返回了未预期的状态码: {response.status_code}")
+                    print_current_time()
                     print("[提示] 请检查是否由于请求过快导致 IP 被暂时封禁。")
                     sys.exit(1)
 
             except requests.RequestException as e:
+                print_current_time()
                 print(f"[网络错误] 第 {attempt} 次尝试, 请求发生异常中断: {e}")
                 if attempt == max_retries:
+                    print_current_time()
                     print("[网络错误] 已到达最大尝试次数, 程序退出")
                     sys.exit(1)
 
