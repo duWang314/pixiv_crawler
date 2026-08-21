@@ -3,6 +3,7 @@ import time
 import requests
 from pathlib import Path
 from datetime import datetime
+import os
 
 from img_to_pdf import merge_images_to_pdf
 
@@ -111,10 +112,16 @@ def batch_download(base_url):
         # 1. 动态构造当前页面的图片链接和保存的文件名
         target_url = f"{base_url}_p{page}.{img_format}"
         filename = f"{artwork_id}_p{page}.{img_format}"
+        filepath = f"{artwork_id}/{filename}"
 
         print()
         print_current_time()
         print(f"[当前进度] 正在尝试下载页码: p{page}")
+        if os.path.exists(filepath):
+            print_current_time()
+            print("[检测断点] 检测到当前页面已下载，跳过...")
+            page += 1
+            continue
         print_current_time()
         print(f"[请求地址] {target_url}")
 
