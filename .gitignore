@@ -1,2 +1,4 @@
-__pycache__/
-.idea/
+*
+!main.py
+!img_to_pdf.py
+!requirements.txt
