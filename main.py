@@ -1,9 +1,10 @@
+import os
 import sys
 import time
+import random
 import requests
 from pathlib import Path
 from datetime import datetime
-import os
 
 from img_to_pdf import merge_images_to_pdf
 
@@ -30,28 +31,23 @@ def batch_download(base_url):
     max_retries = 3
 
     headers = {
-        "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-        "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "priority": "u=1, i",
         "referer": "https://www.pixiv.net/",
-        "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "image",
-        "sec-fetch-mode": "no-cors",
-        "sec-fetch-site": "cross-site",
-        "sec-fetch-storage-access": "active",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                       "Chrome/148.0.0.0 Safari/537.36"
     }
-
+    
+    proxies = {
+        "http": "http://127.0.0.1:10808",
+        "https": "http://127.0.0.1:10808"
+    }
+    
     page = 0
     print()
     print_current_time()
     print(f"[开始任务] 目标作品 ID: {artwork_id}")
-
+    
     folder_path = Path(artwork_id)
-
+    
     try:
         folder_path.mkdir(exist_ok=True)
         print_current_time()
@@ -69,7 +65,7 @@ def batch_download(base_url):
     if not img_has_format:
         for attempt in range(1, max_retries + 1):
             try:
-                png_status = requests.get(f"{base_url}_p{page}.png", headers=headers, timeout=20).status_code
+                png_status = requests.get(f"{base_url}_p{page}.png", headers=headers, proxies=proxies, timeout=20).status_code
                 if png_status == 200:
                     print_current_time()
                     print("[准备阶段] 已确认图片格式为 png, 等待 5 秒后任务正式开始...")
@@ -80,7 +76,7 @@ def batch_download(base_url):
                     print_current_time()
                     print("[准备阶段] 已确认图片格式不是 png, 等待 5 秒后尝试 jpg...")
                     time.sleep(5)
-                    jpg_status = requests.get(f"{base_url}_p{page}.jpg", headers=headers, timeout=20).status_code
+                    jpg_status = requests.get(f"{base_url}_p{page}.jpg", headers=headers, proxies=proxies, timeout=20).status_code
                     if jpg_status == 200:
                         print_current_time()
                         print("[准备阶段] 已确认图片格式为 jpg, 等待 5 秒后任务正式开始...")
@@ -128,7 +124,7 @@ def batch_download(base_url):
         for attempt in range(1, max_retries + 1):
             try:
                 # 发送请求，设置超时时间防止卡死
-                response = requests.get(target_url, headers=headers, timeout=20)
+                response = requests.get(target_url, headers=headers, proxies=proxies, timeout=20)
 
                 # 2. 如果返回 200，说明图片存在，执行下载
                 if response.status_code == 200:
@@ -142,8 +138,9 @@ def batch_download(base_url):
 
                     # 3. 遵守规范，每次成功爬取后等待 10 秒
                     print_current_time()
-                    print("[安全冷却] 为防止触发风控，等待 10 秒后继续...")
-                    time.sleep(10)
+                    wait_time = random.uniform(0.799, 3.25)
+                    print(f"[安全冷却] 为防止触发风控, 等待 {wait_time:.2f} 秒后继续...")
+                    time.sleep(wait_time)
                     break
 
                 # 4. 如果返回 404，说明已经到了最后一页，优雅退出
@@ -159,7 +156,7 @@ def batch_download(base_url):
                     print_current_time()
                     print("[收尾工作] 合并图片为 pdf ", end="")
                     merge_images_to_pdf(artwork_id, f"{artwork_id}.pdf", img_format, page)
-                    sys.exit(0)
+                    return
 
                 # 5. 处理其他非 200/404 的异常状态码（如 403 封禁、502 报错等）
                 else:
@@ -186,6 +183,7 @@ if __name__ == "__main__":
         print("示例: python main.py https://i.pximg.net/img-original/img/2025/06/27/01/29/21/xxxxxxxx_px.png")
         sys.exit(1)
 
-    # 获取命令行传入的第一个参数（即 URL）
-    input_url = sys.argv[1].strip()
-    batch_download(input_url)
+    # 获取命令行传入的参数（即 URL）
+    for i in range(1, len(sys.argv)):
+        input_url = sys.argv[i].strip()
+        batch_download(input_url)
